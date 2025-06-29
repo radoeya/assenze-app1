@@ -1,82 +1,79 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
+import os
+from datetime import datetime
 
 class FirebaseStorage:
     def __init__(self):
-        try:
-            # Inizializza l'app Firebase usando la chiave di servizio
-            cred = credentials.Certificate('firebase-service-account.json')
-            firebase_admin.initialize_app(cred)
-            self.db = firestore.client()
-            self.collection_name = None
-            print("[FIREBASE] Sistema di storage Firebase inizializzato e connesso.")
-        except Exception as e:
-            print(f"[FIREBASE] ERRORE: Impossibile inizializzare Firebase. Assicurati che il file 'firebase-service-account.json' sia presente e valido. Dettagli: {e}")
-            self.db = None
+        # Controlla se l'app è già inizializzata
+        if not firebase_admin._apps:
+            try:
+                # Questo percorso funzionerà sia in locale che su Render (se il Secret File è impostato)
+                cred = credentials.Certificate('firebase-service-account.json')
+                firebase_admin.initialize_app(cred)
+                print("[Firebase] Inizializzazione completata con successo.")
+            except Exception as e:
+                print(f"[Firebase] ERRORE: Impossibile inizializzare Firebase. Controlla il file 'firebase-service-account.json'. Errore: {e}")
+                # In un ambiente di produzione, potresti voler gestire questo errore diversamente
+                # Per ora, la stampa dell'errore è sufficiente per il debug su Render
+        
+        self.db = firestore.client()
+        self.document_id = None
 
-    def set_document_id(self, access_code):
-        """Imposta il nome della collezione Firestore basato sul codice d'accesso."""
-        # Usiamo il codice d'accesso per definire una "collezione" (come una tabella)
-        self.collection_name = f"sbb_assenze_{access_code}"
-        print(f"[FIREBASE] Collezione impostata su: {self.collection_name}")
+    def set_document_id(self, doc_id):
+        """Imposta il documento da usare per questo utente."""
+        self.document_id = doc_id
+
+    def _get_collection_ref(self):
+        """Metodo privato per ottenere il riferimento alla collezione dell'utente."""
+        if not self.document_id:
+            raise ValueError("ID del documento non impostato. Accesso negato.")
+        return self.db.collection('sbb_assenze_data').document(self.document_id).collection('assenze')
 
     def get_data(self):
-        """Recupera tutti i documenti (assenze) dalla collezione corrente."""
-        if not self.db or not self.collection_name:
+        """Recupera tutte le assenze per l'utente corrente."""
+        try:
+            docs_stream = self._get_collection_ref().order_by("created_at", direction=firestore.Query.DESCENDING).stream()
+            data_list = []
+            for doc in docs_stream:
+                doc_data = doc.to_dict()
+                doc_data['id'] = doc.id
+                data_list.append(doc_data)
+            return data_list
+        except Exception:
+            # Se il documento o la collezione non esistono, restituisci una lista vuota.
+            # Questo è un comportamento normale per un nuovo utente.
             return []
-        
-        assenze = []
-        # Recupera tutti i documenti dalla collezione
-        docs = self.db.collection(self.collection_name).stream()
-        for doc in docs:
-            assenza_data = doc.to_dict()
-            # Usiamo l'ID del documento di Firestore come 'id' per la nostra app
-            assenza_data['id'] = doc.id
-            assenze.append(assenza_data)
-        
-        # Ordina per data di creazione per coerenza
-        assenze.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-        return assenze
 
-    def add_assenza(self, assenza_data):
-        """Aggiunge una nuova assenza come un nuovo documento in Firestore."""
-        if not self.db or not self.collection_name:
+    def add_assenza(self, data):
+        """Aggiunge una nuova assenza."""
+        try:
+            # Aggiungi timestamp di creazione
+            data['created_at'] = datetime.now().isoformat()
+            _, doc_ref = self._get_collection_ref().add(data)
+            return doc_ref.id
+        except Exception as e:
+            print(f"Errore durante l'aggiunta del documento: {e}")
             return None
-        
-        # Aggiunge un nuovo documento con un ID generato automaticamente
-        update_time, doc_ref = self.db.collection(self.collection_name).add(assenza_data)
-        print(f"[FIREBASE] Assenza aggiunta con ID: {doc_ref.id}")
-        return doc_ref.id
 
-    def update_assenza(self, assenza_id, data_to_update):
-        """Aggiorna un'assenza esistente in Firestore."""
-        if not self.db or not self.collection_name:
-            return False
-        
+    def update_assenza(self, doc_id, data):
+        """Aggiorna un'assenza esistente."""
         try:
-            self.db.collection(self.collection_name).document(assenza_id).update(data_to_update)
-            print(f"[FIREBASE] Assenza {assenza_id} aggiornata.")
+            data['updated_at'] = datetime.now().isoformat()
+            self._get_collection_ref().document(doc_id).update(data)
             return True
         except Exception as e:
-            print(f"[FIREBASE] Errore durante l'aggiornamento dell'assenza {assenza_id}: {e}")
+            print(f"Errore durante l'aggiornamento del documento {doc_id}: {e}")
             return False
 
-    def delete_assenza(self, assenza_id):
-        """Elimina un'assenza da Firestore."""
-        if not self.db or not self.collection_name:
-            return False
-        
+    def delete_assenza(self, doc_id):
+        """Elimina un'assenza."""
         try:
-            self.db.collection(self.collection_name).document(assenza_id).delete()
-            print(f"[FIREBASE] Assenza {assenza_id} eliminata.")
+            self._get_collection_ref().document(doc_id).delete()
             return True
         except Exception as e:
-            print(f"[FIREBASE] Errore durante l'eliminazione dell'assenza {assenza_id}: {e}")
+            print(f"Errore durante l'eliminazione del documento {doc_id}: {e}")
             return False
 
-    def validate_access_code(self, access_code):
-        """Valida il codice d'accesso (logica invariata)."""
-        return access_code and len(access_code.strip()) >= 3
-
-# Istanza globale
+# Crea una singola istanza della classe da importare nel resto dell'app
 firebase_storage = FirebaseStorage()
