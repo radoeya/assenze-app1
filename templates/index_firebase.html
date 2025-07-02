@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -99,7 +99,7 @@
                         <div id="infortunio-fields" style="display: none;"><div class="form-row"><div class="form-group"><label for="infortunio_dal">Dal</label><input type="date" id="infortunio_dal" name="infortunio_dal"></div><div class="form-group"><label for="infortunio_al">Al</label><input type="date" id="infortunio_al" name="infortunio_al"></div></div></div>
                         <div class="checkbox-group"><input type="checkbox" id="altro" name="altro"><label for="altro">Altro</label></div>
                         <div id="altro-fields" style="display: none;"><div class="form-row"><div class="form-group"><label for="altro_dal">Dal</label><input type="date" id="altro_dal" name="altro_dal"></div><div class="form-group"><label for="altro_al">Al</label><input type="date" id="altro_al" name="altro_al"></div></div></div>
-                        <div class="checkbox-group"><input type="checkbox" id="restrizione_oraria" name="restrizione_oraria"><label for="restrizione_oraria">Restrizione Oraria</label></div>
+                        <div class="checkbox-group"><input type="checkbox" id="restrizione" name="restrizione"><label for="restrizione">Restrizione Oraria</label></div>
                         <div id="restrizione-fields" style="display: none;"><div class="form-row"><div class="form-group"><label for="restrizione_dal">Dal</label><input type="date" id="restrizione_dal" name="restrizione_dal"></div><div class="form-group"><label for="restrizione_al">Al</label><input type="date" id="restrizione_al" name="restrizione_al"></div></div></div>
                         <div class="form-group"><label for="commenti">Commenti</label><textarea id="commenti" name="commenti" rows="3" placeholder="Note aggiuntive..."></textarea></div>
                         <button type="submit" class="btn btn-primary">Salva Assenza</button>
@@ -132,7 +132,7 @@
                 <div id="modifica-infortunio-fields" style="display: none;"><div class="form-row"><div class="form-group"><label>Dal</label><input type="date" id="modifica-infortunio_dal"></div><div class="form-group"><label>Al</label><input type="date" id="modifica-infortunio_al"></div></div></div>
                 <div class="checkbox-group"><input type="checkbox" id="modifica-altro"><label for="modifica-altro">Altro</label></div>
                 <div id="modifica-altro-fields" style="display: none;"><div class="form-row"><div class="form-group"><label>Dal</label><input type="date" id="modifica-altro_dal"></div><div class="form-group"><label>Al</label><input type="date" id="modifica-altro_al"></div></div></div>
-                <div class="checkbox-group"><input type="checkbox" id="modifica-restrizione_oraria"><label for="modifica-restrizione_oraria">Restrizione Oraria</label></div>
+                <div class="checkbox-group"><input type="checkbox" id="modifica-restrizione"><label for="modifica-restrizione">Restrizione Oraria</label></div>
                 <div id="modifica-restrizione-fields" style="display: none;"><div class="form-row"><div class="form-group"><label>Dal</label><input type="date" id="modifica-restrizione_dal"></div><div class="form-group"><label>Al</label><input type="date" id="modifica-restrizione_al"></div></div></div>
                 <div class="form-group"><label for="modifica-commenti">Commenti</label><textarea id="modifica-commenti" rows="3"></textarea></div>
                 <button type="submit" class="btn btn-success">Salva Modifiche</button>
@@ -167,14 +167,13 @@
             document.getElementById('assenzaForm').addEventListener('submit', addAssenza);
             document.getElementById('modificaForm').addEventListener('submit', handleUpdateAssenza);
 
-            const checkboxes = ['malattia', 'infortunio', 'altro', 'restrizione_oraria'];
+            const checkboxes = ['malattia', 'infortunio', 'altro', 'restrizione'];
             checkboxes.forEach(id => {
-                const fieldId = id.replace('_oraria', '');
                 document.getElementById(id).addEventListener('change', function() {
-                    document.getElementById(`${fieldId}-fields`).style.display = this.checked ? 'block' : 'none';
+                    document.getElementById(`${id}-fields`).style.display = this.checked ? 'block' : 'none';
                 });
                 document.getElementById(`modifica-${id}`).addEventListener('change', function() {
-                    document.getElementById(`modifica-${fieldId}-fields`).style.display = this.checked ? 'block' : 'none';
+                    document.getElementById(`modifica-${id}-fields`).style.display = this.checked ? 'block' : 'none';
                 });
             });
         }
@@ -225,7 +224,7 @@
             const form = e.target;
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
-             ['malattia', 'infortunio', 'altro', 'restrizione_oraria'].forEach(key => {
+             ['malattia', 'infortunio', 'altro', 'restrizione'].forEach(key => {
                 data[key] = formData.has(key);
             });
 
@@ -298,21 +297,18 @@
             document.getElementById('modifica-tipologia').value = assenza.tipologia;
             document.getElementById('modifica-commenti').value = assenza.commenti || '';
 
-            const types = ['malattia', 'infortunio', 'altro', 'restrizione_oraria'];
+            const types = ['malattia', 'infortunio', 'altro', 'restrizione'];
             types.forEach(type => {
                 const checkbox = document.getElementById(`modifica-${type}`);
-                const fieldId = type.replace('_oraria', '');
-                const fieldsDiv = document.getElementById(`modifica-${fieldId}-fields`);
-                
-                const dataKey = (type === 'restrizione_oraria') ? 'restrizione' : type;
-                const isChecked = assenza[dataKey] || false;
+                const fieldsDiv = document.getElementById(`modifica-${type}-fields`);
+                const isChecked = assenza[type] || false;
                 
                 checkbox.checked = isChecked;
                 fieldsDiv.style.display = isChecked ? 'block' : 'none';
 
                 if (isChecked) {
-                    document.getElementById(`modifica-${type}_dal`).value = assenza[`${dataKey}_dal`] || '';
-                    document.getElementById(`modifica-${type}_al`).value = assenza[`${dataKey}_al`] || '';
+                    document.getElementById(`modifica-${type}_dal`).value = assenza[`${type}_dal`] || '';
+                    document.getElementById(`modifica-${type}_al`).value = assenza[`${type}_al`] || '';
                 }
             });
             openModal('modal-modifica');
@@ -328,18 +324,17 @@
                 commenti: document.getElementById('modifica-commenti').value,
             };
 
-            const types = ['malattia', 'infortunio', 'altro', 'restrizione_oraria'];
+            const types = ['malattia', 'infortunio', 'altro', 'restrizione'];
             types.forEach(type => {
                 const checkbox = document.getElementById(`modifica-${type}`);
-                const dataKey = (type === 'restrizione_oraria') ? 'restrizione' : type;
-                data[dataKey] = checkbox.checked;
+                data[type] = checkbox.checked;
                 
                 if (checkbox.checked) {
-                    data[`${dataKey}_dal`] = document.getElementById(`modifica-${type}_dal`).value;
-                    data[`${dataKey}_al`] = document.getElementById(`modifica-${type}_al`).value;
+                    data[`${type}_dal`] = document.getElementById(`modifica-${type}_dal`).value;
+                    data[`${type}_al`] = document.getElementById(`modifica-${type}_al`).value;
                 } else {
-                    data[`${dataKey}_dal`] = '';
-                    data[`${dataKey}_al`] = '';
+                    data[`${type}_dal`] = '';
+                    data[`${type}_al`] = '';
                 }
             });
             
