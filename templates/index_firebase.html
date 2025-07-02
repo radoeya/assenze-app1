@@ -170,11 +170,9 @@
             const checkboxes = ['malattia', 'infortunio', 'altro', 'restrizione_oraria'];
             checkboxes.forEach(id => {
                 const fieldId = id.replace('_oraria', '');
-                // Listener per il form di inserimento
                 document.getElementById(id).addEventListener('change', function() {
                     document.getElementById(`${fieldId}-fields`).style.display = this.checked ? 'block' : 'none';
                 });
-                // Listener per il modal di modifica
                 document.getElementById(`modifica-${id}`).addEventListener('change', function() {
                     document.getElementById(`modifica-${fieldId}-fields`).style.display = this.checked ? 'block' : 'none';
                 });
@@ -262,11 +260,10 @@
             return assenze.map(assenza => {
                 const rientroInfo = calculateRientroInfo(assenza);
                 const getDetailHTML = (type, label, from, to) => {
-                    const checkType = type === 'restrizione' ? 'restrizione_oraria' : type;
+                    const checkType = type === 'restrizione' ? 'restrizione' : type;
                     return assenza[checkType] ? `<div class="detail-item"><div class="detail-label">${label}</div><div class="detail-value">${formatDate(from) || ''} → ${formatDate(to) || ''}</div></div>` : '';
                 }
-                const hasReturnDate = rientroInfo.daysRemaining !== null;
-
+                
                 return `
                 <div class="assenza-item" data-id="${assenza.id}">
                     <div class="assenza-header">
@@ -302,21 +299,26 @@
             document.getElementById('modifica-tipologia').value = assenza.tipologia;
             document.getElementById('modifica-commenti').value = assenza.commenti || '';
 
-            const types = ['malattia', 'infortunio', 'altro', 'restrizione_oraria'];
-            types.forEach(type => {
-                const checkbox = document.getElementById(`modifica-${type}`);
-                const fieldId = type.replace('_oraria', '');
-                const fieldsDiv = document.getElementById(`modifica-${fieldId}-fields`);
-                const isChecked = assenza[type] || (type === 'restrizione_oraria' && assenza['restrizione']);
+            const types = {
+                'malattia': 'malattia',
+                'infortunio': 'infortunio',
+                'altro': 'altro',
+                'restrizione_oraria': 'restrizione'
+            };
+
+            for (const [htmlId, dataKey] of Object.entries(types)) {
+                const checkbox = document.getElementById(`modifica-${htmlId}`);
+                const fieldsDiv = document.getElementById(`modifica-${dataKey}-fields`);
+                const isChecked = assenza[dataKey] || false;
                 
                 checkbox.checked = isChecked;
                 fieldsDiv.style.display = isChecked ? 'block' : 'none';
 
                 if (isChecked) {
-                    document.getElementById(`modifica-${type}_dal`).value = assenza[`${fieldId}_dal`] || '';
-                    document.getElementById(`modifica-${type}_al`).value = assenza[`${fieldId}_al`] || '';
+                    document.getElementById(`modifica-${htmlId}_dal`).value = assenza[`${dataKey}_dal`] || '';
+                    document.getElementById(`modifica-${htmlId}_al`).value = assenza[`${dataKey}_al`] || '';
                 }
-            });
+            }
             openModal('modal-modifica');
         }
 
@@ -330,20 +332,25 @@
                 commenti: document.getElementById('modifica-commenti').value,
             };
 
-            const types = ['malattia', 'infortunio', 'altro', 'restrizione_oraria'];
-            types.forEach(type => {
-                const checkbox = document.getElementById(`modifica-${type}`);
-                data[type] = checkbox.checked;
-                const fieldId = type.replace('_oraria', '');
+            const types = {
+                'malattia': 'malattia',
+                'infortunio': 'infortunio',
+                'altro': 'altro',
+                'restrizione_oraria': 'restrizione'
+            };
+
+            for (const [htmlId, dataKey] of Object.entries(types)) {
+                const checkbox = document.getElementById(`modifica-${htmlId}`);
+                data[dataKey] = checkbox.checked;
                 
                 if (checkbox.checked) {
-                    data[`${fieldId}_dal`] = document.getElementById(`modifica-${type}_dal`).value;
-                    data[`${fieldId}_al`] = document.getElementById(`modifica-${type}_al`).value;
+                    data[`${dataKey}_dal`] = document.getElementById(`modifica-${htmlId}_dal`).value;
+                    data[`${dataKey}_al`] = document.getElementById(`modifica-${htmlId}_al`).value;
                 } else {
-                    data[`${fieldId}_dal`] = '';
-                    data[`${fieldId}_al`] = '';
+                    data[`${dataKey}_dal`] = '';
+                    data[`${dataKey}_al`] = '';
                 }
-            });
+            }
             
             try {
                 await fetchAPI(`/api/assenze/${id}`, { 
@@ -412,10 +419,10 @@
             today.setUTCHours(0, 0, 0, 0);
             
             let endDateStr;
-            const types = ['malattia', 'infortunio', 'altro', 'restrizione_oraria'];
+            const types = ['malattia', 'infortunio', 'altro', 'restrizione'];
             for(const type of types) {
-                if (assenza[type] && assenza[`${type.replace('_oraria','')}_al`]) {
-                    endDateStr = assenza[`${type.replace('_oraria','')}_al`];
+                if (assenza[type] && assenza[`${type}_al`]) {
+                    endDateStr = assenza[`${type}_al`];
                     break;
                 }
             }
@@ -446,7 +453,7 @@
                 acc.malattie += a.malattia ? 1 : 0;
                 acc.infortuni += a.infortunio ? 1 : 0;
                 acc.altro += a.altro ? 1 : 0;
-                acc.restrizioni += a.restrizione_oraria ? 1 : 0;
+                acc.restrizioni += a.restrizione ? 1 : 0;
                 return acc;
             }, { kbc: 0, zfr: 0, malattie: 0, infortuni: 0, altro: 0, restrizioni: 0 });
             document.getElementById('statistiche-content').innerHTML = `
